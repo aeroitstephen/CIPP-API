@@ -40,11 +40,22 @@ function Invoke-Pax8Request {
         }
         return Invoke-RestMethod @Params
     } catch {
-        $Message = if ($_.ErrorDetails.Message) {
-            Get-NormalizedError -Message $_.ErrorDetails.Message
-        } else {
-            $_.Exception.Message
+        $Message = $null
+        if ($_.ErrorDetails.Message) {
+            $RawErrorMessage = $_.ErrorDetails.Message
+            try {
+                $ErrorBody = $RawErrorMessage | ConvertFrom-Json -ErrorAction Stop
+                $Message = $ErrorBody.message ?? $ErrorBody.title ?? $ErrorBody.detail
+                if (-not $Message -and $ErrorBody.details) {
+                    $Message = @($ErrorBody.details | ForEach-Object { $_.message ?? $_.detail ?? $_ }) -join ' '
+                }
+            } catch {
+                $Message = Get-NormalizedError -Message $RawErrorMessage
+            }
         }
-        throw "Pax8 API request failed for $Method $Path. $Message"
+        if ([string]::IsNullOrWhiteSpace($Message)) {
+            $Message = $_.Exception.Message
+        }
+        throw "Pax8 API request failed: $Message"
     }
 }

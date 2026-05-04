@@ -22,9 +22,32 @@ function Get-Pax8CurrentSubscription {
         $Query.productId = $SKU
     }
     $Subscriptions = Get-Pax8PagedData -Path 'subscriptions' -Query $Query
+    $ProductLookup = @{}
+    $ProductIds = @(
+        $Subscriptions | ForEach-Object {
+            $_.product.id ?? $_.productId
+        } | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_)
+        } | Select-Object -Unique
+    )
+    foreach ($ProductId in $ProductIds) {
+        try {
+            $Product = Invoke-Pax8Request -Method GET -Path "products/$ProductId"
+            $ProductLookup[$ProductId] = $Product.name ?? $Product.displayName
+        } catch {
+            Write-Information "Could not resolve Pax8 product name for $ProductId. $($_.Exception.Message)"
+        }
+    }
+
     $MappedSubscriptions = @($Subscriptions | ForEach-Object {
             $ProductNameValue = $_.product.name ?? $_.productName ?? $_.name
             $ProductId = $_.product.id ?? $_.productId
+            if ([string]::IsNullOrWhiteSpace($ProductNameValue) -and -not [string]::IsNullOrWhiteSpace($ProductId) -and $ProductLookup.ContainsKey($ProductId)) {
+                $ProductNameValue = $ProductLookup[$ProductId]
+            }
+            if ([string]::IsNullOrWhiteSpace($ProductNameValue)) {
+                $ProductNameValue = $ProductId
+            }
             [PSCustomObject]@{
                 id                    = $_.id
                 subscriptionId        = $_.id
