@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v1
+        uses: Azure/functions-action@v1.5
         id: fa
         with:
           app-name: 'cippngg34'
