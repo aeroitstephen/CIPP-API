@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Powershell project to Azure Function App - cippngg34
 
 on:
@@ -21,7 +18,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout GitHub Action
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Login to Azure
@@ -31,10 +28,20 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4A3DA3F099DA4602B3B9D1A866550F71 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_37BFA04DF031496AA6D2AD3FEE1CBD40 }}
 
-      - name: Run Azure Functions Action
-        uses: azure/functions-action@v1
-        id: fa
-        with:
-          app-name: 'cippngg34'
-          slot-name: 'Production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+      - name: Deploy with Azure CLI
+        shell: pwsh
+        run: |
+          Compress-Archive -Path * -DestinationPath functionapp.zip -Force
+
+          $rg = az functionapp list `
+            --query "[?name=='cippngg34'].resourceGroup | [0]" `
+            -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($rg)) {
+            throw "Could not find resource group for Function App cippngg34"
+          }
+
+          az functionapp deployment source config-zip `
+            --name "cippngg34" `
+            --resource-group "$rg" `
+            --src "functionapp.zip"
