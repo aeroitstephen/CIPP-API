@@ -3,12 +3,23 @@ name: Test action access
 on:
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     runs-on: windows-2022
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Test Azure login action download
+        uses: azure/login@v2
+        with:
+          client-id: fake
+          tenant-id: fake
+          subscription-id: fake
