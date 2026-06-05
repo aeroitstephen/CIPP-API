@@ -1,25 +1,44 @@
-name: Test action access
+name: Test CIPP API deploy without functions-action
 
 on:
   workflow_dispatch:
 
 env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  test:
+  deploy:
     runs-on: windows-2022
     permissions:
-      contents: read
       id-token: write
+      contents: read
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Test Azure login action download
+      - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: fake
-          tenant-id: fake
-          subscription-id: fake
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BF246D7B169D43A68403CE296F0779D6 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_4A3DA3F099DA4602B3B9D1A866550F71 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_37BFA04DF031496AA6D2AD3FEE1CBD40 }}
+
+      - name: Deploy with Azure CLI
+        shell: pwsh
+        run: |
+          Compress-Archive -Path * -DestinationPath functionapp.zip -Force
+
+          $rg = az functionapp list `
+            --query "[?name=='cippngg34'].resourceGroup | [0]" `
+            -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($rg)) {
+            throw "Could not find resource group for Function App cippngg34"
+          }
+
+          az functionapp deployment source config-zip `
+            --name "cippngg34" `
+            --resource-group "$rg" `
+            --src "functionapp.zip"
